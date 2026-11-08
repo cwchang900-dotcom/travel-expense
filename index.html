@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <!-- 讓 iPhone 加入主畫面後變成全螢幕 App (隱藏 Safari 網址列) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="出國記帳">
+  <title>出國記帳</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: #f2f2f7; margin: 0; padding: 10px; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 440px; background: #ffffff; border-radius: 16px; padding: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    h2 { margin: 0; font-size: 18px; color: #1c1c1e; }
+    .gear-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px; }
+    
+    .label { font-size: 12px; font-weight: 600; color: #8e8e93; margin-bottom: 4px; }
+    .form-group { margin-bottom: 10px; }
+    
+    .btn-group { display: flex; gap: 6px; }
+    .select-btn {
+      flex: 1; padding: 9px 4px; border: 1.5px solid #e5e5ea; border-radius: 10px;
+      background: #f9f9fb; font-size: 14px; font-weight: 600; text-align: center; color: #3a3a3c; cursor: pointer;
+    }
+    .select-btn.active { background: #007aff; color: #fff; border-color: #007aff; }
+
+    input[type="date"], input[type="number"], input[type="text"] {
+      width: 100%; padding: 9px 12px; font-size: 16px; border: 1.5px solid #e5e5ea; border-radius: 10px;
+      background: #fafafa; outline: none; -webkit-appearance: none;
+    }
+    input:focus { border-color: #007aff; background: #fff; }
+    
+    .submit-btn {
+      width: 100%; padding: 12px; background: #34c759; color: white; border: none;
+      border-radius: 12px; font-size: 17px; font-weight: bold; cursor: pointer; margin-top: 4px;
+    }
+    .submit-btn:disabled { background: #c7c7cc; }
+    
+    #resultBox { margin-top: 8px; padding: 8px; border-radius: 8px; font-size: 13px; text-align: center; display: none; }
+    .success { background: #e8f8ed; color: #1e7e34; font-weight: 600; }
+    .error { background: #fde8e8; color: #d32f2f; font-weight: 600; }
+
+    .stats-section { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e5e5ea; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-card { background: #f9f9fb; border: 1px solid #e5e5ea; border-radius: 10px; padding: 8px; text-align: center; }
+    .stat-card.full-width { grid-column: span 2; background: #eef6ff; border-color: #cce3ff; display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; }
+    .stat-label { font-size: 12px; color: #6c6c70; font-weight: 600; }
+    .stat-value { font-size: 17px; font-weight: 800; color: #1c1c1e; }
+    .stat-card.full-width .stat-value { color: #0066cc; font-size: 19px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-row">
+      <h2>✈️ 出國即時記帳</h2>
+      <button class="gear-btn" onclick="setupApiUrl()" title="設定 GAS 網址">⚙️</button>
+    </div>
+    
+    <div class="form-group">
+      <div class="label">消費日期</div>
+      <input type="date" id="date" onchange="refreshStats()">
+    </div>
+
+    <div class="form-group">
+      <div class="label">付款方式</div>
+      <div class="btn-group" id="payGroup">
+        <div class="select-btn active" onclick="setPayment('現金')">💴 現金 (外幣)</div>
+        <div class="select-btn" onclick="setPayment('信用卡')">💳 信用卡 (台幣)</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="label">消費種類</div>
+      <div class="btn-group" id="catGroup">
+        <div class="select-btn active" onclick="setCategory('食')">食</div>
+        <div class="select-btn" onclick="setCategory('衣')">衣</div>
+        <div class="select-btn" onclick="setCategory('住')">住</div>
+        <div class="select-btn" onclick="setCategory('行')">行</div>
+        <div class="select-btn" onclick="setCategory('娛樂')">娛樂</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="label" id="amountLabel">消費金額 (當地外幣)</div>
+      <input type="number" id="amount" placeholder="0" inputmode="decimal">
+    </div>
+
+    <div class="form-group">
+      <div class="label">品項備註 (選填)</div>
+      <input type="text" id="note" placeholder="例如：JR車票、藥妝、午餐">
+    </div>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitData()">記下一筆</button>
+    <div id="resultBox"></div>
+
+    <div class="stats-section">
+      <div class="stats-grid">
+        <div class="stat-card full-width">
+          <div class="stat-label" id="todayLabel">📅 當日花費台幣</div>
+          <div class="stat-value" id="statTodayTwd">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">💴 外幣現金累計</div>
+          <div class="stat-value" id="statCashForeign">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">💳 信用卡累計 (TWD)</div>
+          <div class="stat-value" id="statCardTwd">--</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const tzOffset = (new Date()).getTimezoneOffset() * 60000;
+    document.getElementById('date').value = (new Date(Date.now() - tzOffset)).toISOString().split('T')[0];
+    
+    let currentPayment = '現金';
+    let currentCategory = '食';
+
+    function getApiUrl() {
+      let url = localStorage.getItem('GAS_EXPENSE_URL');
+      if (!url) {
+        url = prompt('請貼上您的 Google Apps Script 網頁應用程式網址 (以 /exec 結尾)：');
+        if (url && url.trim()) {
+          localStorage.setItem('GAS_EXPENSE_URL', url.trim());
+        }
+      }
+      return url ? url.trim() : '';
+    }
+
+    function setupApiUrl() {
+      const current = localStorage.getItem('GAS_EXPENSE_URL') || '';
+      const url = prompt('設定 Google Apps Script 網址：', current);
+      if (url && url.trim()) {
+        localStorage.setItem('GAS_EXPENSE_URL', url.trim());
+        refreshStats();
+      }
+    }
+
+    window.onload = function() {
+      if (getApiUrl()) refreshStats();
+    };
+
+    function setPayment(val) {
+      currentPayment = val;
+      document.querySelectorAll('#payGroup .select-btn').forEach(b => b.classList.toggle('active', b.innerText.includes(val)));
+      document.getElementById('amountLabel').innerText = (val === '信用卡') ? '消費金額 (台幣 TWD)' : '消費金額 (當地外幣)';
+    }
+
+    function setCategory(val) {
+      currentCategory = val;
+      document.querySelectorAll('#catGroup .select-btn').forEach(b => b.classList.toggle('active', b.innerText === val));
+    }
+
+    function updateStatsUI(stats) {
+      if (!stats) return;
+      const selectedDate = document.getElementById('date').value;
+      document.getElementById('todayLabel').innerText = `📅 當日花費 (${selectedDate.slice(5)})`;
+      document.getElementById('statTodayTwd').innerText = 'NT$ ' + Number(stats.todayTwd).toLocaleString();
+      document.getElementById('statCashForeign').innerText = Number(stats.totalCashForeign).toLocaleString();
+      document.getElementById('statCardTwd').innerText = 'NT$ ' + Number(stats.totalCardTwd).toLocaleString();
+    }
+
+    async function refreshStats() {
+      const apiUrl = getApiUrl();
+      if (!apiUrl) return;
+      const selectedDate = document.getElementById('date').value;
+      document.getElementById('statTodayTwd').innerText = '讀取中...';
+      try {
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'getStats', date: selectedDate })
+        });
+        const json = await res.json();
+        if (json.status === 'success') updateStatsUI(json.stats);
+      } catch (e) {
+        document.getElementById('statTodayTwd').innerText = '連線失敗';
+      }
+    }
+
+    async function submitData() {
+      const apiUrl = getApiUrl();
+      if (!apiUrl) return;
+      const amountInput = document.getElementById('amount');
+      const amountVal = amountInput.value.trim();
+      const resBox = document.getElementById('resultBox');
+      const btn = document.getElementById('submitBtn');
+
+      if (!amountVal || Number(amountVal) <= 0) {
+        alert('請輸入有效金額！');
+        amountInput.focus();
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = '記錄中...';
+      resBox.style.display = 'none';
+
+      const payload = {
+        action: 'addExpense',
+        data: {
+          date: document.getElementById('date').value,
+          payment: currentPayment,
+          category: currentCategory,
+          amount: amountVal,
+          note: document.getElementById('note').value.trim()
+        }
+      };
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        const res = await response.json();
+        btn.disabled = false;
+        btn.innerText = '記下一筆';
+        resBox.style.display = 'block';
+        if (res.status === 'success') {
+          resBox.className = 'success';
+          resBox.innerText = res.message;
+          amountInput.value = '';
+          document.getElementById('note').value = '';
+          updateStatsUI(res.stats);
+        } else {
+          resBox.className = 'error';
+          resBox.innerText = res.message;
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerText = '記下一筆';
+        resBox.style.display = 'block';
+        resBox.className = 'error';
+        resBox.innerText = '連線錯誤，請確認 GAS 權限已設為「所有人」';
+      }
+    }
+  </script>
+</body>
+</html>
