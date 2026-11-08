@@ -3,19 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <!-- 讓 iPhone 加入主畫面後變成全螢幕 App (隱藏 Safari 網址列) -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="出國記帳">
+  <link rel="apple-touch-icon" href="https://emojicdn.elk.sh/✈️?style=apple">
   <title>出國記帳</title>
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
     body { background-color: #f2f2f7; margin: 0; padding: 10px; display: flex; justify-content: center; }
     .container { width: 100%; max-width: 440px; background: #ffffff; border-radius: 16px; padding: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
-    .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    h2 { margin: 0; font-size: 18px; color: #1c1c1e; }
-    .gear-btn { background: none; border: none; font-size: 18px; cursor: pointer; padding: 4px; }
-    
+    h2 { margin: 0 0 10px; font-size: 18px; text-align: center; color: #1c1c1e; }
     .label { font-size: 12px; font-weight: 600; color: #8e8e93; margin-bottom: 4px; }
     .form-group { margin-bottom: 10px; }
     
@@ -53,10 +50,7 @@
 </head>
 <body>
   <div class="container">
-    <div class="header-row">
-      <h2>✈️ 出國即時記帳</h2>
-      <button class="gear-btn" onclick="setupApiUrl()" title="設定 GAS 網址">⚙️</button>
-    </div>
+    <h2>✈️ 出國即時記帳</h2>
     
     <div class="form-group">
       <div class="label">消費日期</div>
@@ -114,34 +108,17 @@
   </div>
 
   <script>
+    // 👇👇👇 請把下面引號內的文字，換成您的 GAS 網址 (以 /exec 結尾) 👇👇👇
+    const API_URL = '請把這裡換成您的GAS網址';
+
     const tzOffset = (new Date()).getTimezoneOffset() * 60000;
     document.getElementById('date').value = (new Date(Date.now() - tzOffset)).toISOString().split('T')[0];
     
     let currentPayment = '現金';
     let currentCategory = '食';
 
-    function getApiUrl() {
-      let url = localStorage.getItem('GAS_EXPENSE_URL');
-      if (!url) {
-        url = prompt('請貼上您的 Google Apps Script 網頁應用程式網址 (以 /exec 結尾)：');
-        if (url && url.trim()) {
-          localStorage.setItem('GAS_EXPENSE_URL', url.trim());
-        }
-      }
-      return url ? url.trim() : '';
-    }
-
-    function setupApiUrl() {
-      const current = localStorage.getItem('GAS_EXPENSE_URL') || '';
-      const url = prompt('設定 Google Apps Script 網址：', current);
-      if (url && url.trim()) {
-        localStorage.setItem('GAS_EXPENSE_URL', url.trim());
-        refreshStats();
-      }
-    }
-
     window.onload = function() {
-      if (getApiUrl()) refreshStats();
+      refreshStats();
     };
 
     function setPayment(val) {
@@ -165,12 +142,10 @@
     }
 
     async function refreshStats() {
-      const apiUrl = getApiUrl();
-      if (!apiUrl) return;
       const selectedDate = document.getElementById('date').value;
       document.getElementById('statTodayTwd').innerText = '讀取中...';
       try {
-        const res = await fetch(apiUrl, {
+        const res = await fetch(API_URL, {
           method: 'POST',
           body: JSON.stringify({ action: 'getStats', date: selectedDate })
         });
@@ -182,8 +157,6 @@
     }
 
     async function submitData() {
-      const apiUrl = getApiUrl();
-      if (!apiUrl) return;
       const amountInput = document.getElementById('amount');
       const amountVal = amountInput.value.trim();
       const resBox = document.getElementById('resultBox');
@@ -211,7 +184,7 @@
       };
 
       try {
-        const response = await fetch(apiUrl, {
+        const response = await fetch(API_URL, {
           method: 'POST',
           body: JSON.stringify(payload)
         });
